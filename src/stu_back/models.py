@@ -61,3 +61,16 @@ class VivaSession(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+
+class Answer(Base):
+    __tablename__ = "answers"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    session_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("viva_sessions.id"))
+    question_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("questions.id"))
+    answer_text: Mapped[str]
+    ai_score: Mapped[float | None]
+    ai_feedback: Mapped[str | None]
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
