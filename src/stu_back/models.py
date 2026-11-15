@@ -44,3 +44,20 @@ class Question(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+
+class VivaSession(Base):
+    __tablename__ = "viva_sessions"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('in_progress', 'completed')", name="ck_viva_sessions_status"
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    student_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    exam_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("exams.id"))
+    status: Mapped[str] = mapped_column(server_default="in_progress")
+    final_score: Mapped[float | None]
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
