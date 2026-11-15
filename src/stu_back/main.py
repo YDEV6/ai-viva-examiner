@@ -1,7 +1,7 @@
+from stu_back.deps import get_current_user
 from fastapi import Depends, FastAPI, HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
-
 from stu_back.database import get_db
 from stu_back.models import User
 from stu_back.schemas import (
@@ -52,3 +52,7 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
 
     token = create_access_token(str(user.id), user.role)
     return TokenResponse(access_token=token)
+
+@app.get("/me", response_model=UserResponse)
+def read_me(current_user: User = Depends(get_current_user)):
+    return current_user
