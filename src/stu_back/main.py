@@ -216,3 +216,27 @@ def submit_answer(
     db.commit()
     db.refresh(answer)
     return answer
+
+
+@app.get("/sessions/{session_id}/next-question", response_model=QuestionResponse | None)
+def get_next_question(
+    session_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    student: User = Depends(require_student),
+):
+    session = db.get(VivaSession, session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    if session.student_id != student.id:
+        raise HTTPException(status_code=403, detail="This is not your session")
+    if session.status != "in_progress":
+        raise HTTPException(status_code=400, detail="This viva is already finished")
+
+    answered_ids = select(Answer.question_id).where(Answer.session_id == session.id)
+    query = (
+        select(Question)
+        .where(Question.exam_id == session.exam_id, Question.id.not_in(answered_ids))
+        .order_by(Question.created_at)
+        .limit(1)
+    )
+    return db.scalar(query)
