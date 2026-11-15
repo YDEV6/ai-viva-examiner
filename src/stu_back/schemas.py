@@ -63,3 +63,19 @@ class VivaSessionResponse(BaseModel):
     status: str
     final_score: float | None
     created_at: datetime
+
+class AnswerCreate(BaseModel):
+    question_id: uuid.UUID
+    answer_text: str = Field(min_length=1)
+
+
+class AnswerResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    session_id: uuid.UUID
+    question_id: uuid.UUID
+    answer_text: str
+    ai_score: float | None
+    ai_feedback: str | None
+    created_at: datetime

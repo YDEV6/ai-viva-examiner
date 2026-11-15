@@ -4,8 +4,10 @@ from fastapi import Depends, FastAPI, HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from stu_back.database import get_db
-from stu_back.models import Exam,Question, User, VivaSession
+from stu_back.models import Answer, Exam,Question, User, VivaSession
 from stu_back.schemas import (
+    AnswerCreate,
+    AnswerResponse,
     ExamCreate,
     ExamResponse,
     LoginRequest,
@@ -170,3 +172,47 @@ def start_session(
     db.commit()
     db.refresh(session)
     return session
+
+@app.post(
+    "/sessions/{session_id}/answers",
+    response_model=AnswerResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def submit_answer(
+    session_id: uuid.UUID,
+    data: AnswerCreate,
+    db: Session = Depends(get_db),
+    student: User = Depends(require_student),
+):
+    session = db.get(VivaSession, session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    if session.student_id != student.id:
+        raise HTTPException(status_code=403, detail="This is not your session")
+    if session.status != "in_progress":
+        raise HTTPException(status_code=400, detail="This viva is already finished")
+
+    question = db.get(Question, data.question_id)
+    if question is None or question.exam_id != session.exam_id:
+        raise HTTPException(
+            status_code=400, detail="This question is not part of this exam"
+        )
+
+    already_answered = db.scalar(
+        select(Answer).where(
+            Answer.session_id == session.id,
+            Answer.question_id == question.id,
+        )
+    )
+    if already_answered:
+        raise HTTPException(status_code=409, detail="Question already answered")
+
+    answer = Answer(
+        session_id=session.id,
+        question_id=question.id,
+        answer_text=data.answer_text,
+    )
+    db.add(answer)
+    db.commit()
+    db.refresh(answer)
+    return answer
