@@ -53,3 +53,13 @@ class QuestionResponse(BaseModel):
     exam_id: uuid.UUID
     question_text: str
     created_at: datetime
+
+class VivaSessionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    student_id: uuid.UUID
+    exam_id: uuid.UUID
+    status: str
+    final_score: float | None
+    created_at: datetime

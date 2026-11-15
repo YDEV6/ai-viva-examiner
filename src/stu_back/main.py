@@ -1,10 +1,10 @@
 import uuid
-from stu_back.deps import get_current_user, require_teacher
+from stu_back.deps import get_current_user, require_student, require_teacher
 from fastapi import Depends, FastAPI, HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from stu_back.database import get_db
-from stu_back.models import Exam,Question, User
+from stu_back.models import Exam,Question, User, VivaSession
 from stu_back.schemas import (
     ExamCreate,
     ExamResponse,
@@ -14,6 +14,7 @@ from stu_back.schemas import (
     SignupRequest,
     TokenResponse,
     UserResponse,
+    VivaSessionResponse,
 )
 from stu_back.security import create_access_token, hash_password, verify_password
 
@@ -142,3 +143,30 @@ def list_questions(
         .order_by(Question.created_at)
     )
     return db.scalars(query).all()
+
+
+@app.post(
+    "/exams/{exam_id}/sessions",
+    response_model=VivaSessionResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def start_session(
+    exam_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    student: User = Depends(require_student),
+):
+    exam = db.get(Exam, exam_id)
+    if exam is None:
+        raise HTTPException(status_code=404, detail="Exam not found")
+
+    question_count = db.scalar(
+        select(func.count()).select_from(Question).where(Question.exam_id == exam.id)
+    )
+    if question_count == 0:
+        raise HTTPException(status_code=400, detail="This exam has no questions yet")
+
+    session = VivaSession(student_id=student.id, exam_id=exam.id)
+    db.add(session)
+    db.commit()
+    db.refresh(session)
+    return session
