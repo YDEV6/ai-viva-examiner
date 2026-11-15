@@ -1,13 +1,16 @@
+import uuid
 from stu_back.deps import get_current_user, require_teacher
 from fastapi import Depends, FastAPI, HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from stu_back.database import get_db
-from stu_back.models import Exam, User
+from stu_back.models import Exam,Questions, User
 from stu_back.schemas import (
     ExamCreate,
     ExamResponse,
     LoginRequest,
+    QuestionCreate,
+    QuestionResponse,
     SignupRequest,
     TokenResponse,
     UserResponse,
@@ -70,3 +73,26 @@ def create_exam(
     db.commit()
     db.refresh(exam)
     return exam
+
+@app.post(
+    "/exams/{exam_id}/questions",
+    response_model=QuestionResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def add_question(
+    exam_id: uuid.UUID,
+    data: QuestionCreate,
+    db: Session = Depends(get_db),
+    teacher: User = Depends(require_teacher),
+):
+    exam = db.get(Exam, exam_id)
+    if exam is None:
+        raise HTTPException(status_code=404, detail="Exam not found")
+    if exam.teacher_id != teacher.id:
+        raise HTTPException(status_code=403, detail="This is not your exam")
+
+    question = Question(exam_id=exam.id, question_text=data.question_text)
+    db.add(question)
+    db.commit()
+    db.refresh(question)
+    return question

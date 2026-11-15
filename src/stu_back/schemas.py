@@ -41,3 +41,15 @@ class ExamResponse(BaseModel):
     title: str
     topic: str
     created_at: datetime
+
+class QuestionCreate(BaseModel):
+    question_text: str = Field(min_length=1)
+
+
+class QuestionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    exam_id: uuid.UUID
+    question_text: str
+    created_at: datetime
