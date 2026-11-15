@@ -4,8 +4,13 @@ from sqlalchemy.orm import Session
 
 from stu_back.database import get_db
 from stu_back.models import User
-from stu_back.schemas import SignupRequest, UserResponse
-from stu_back.security import hash_password
+from stu_back.schemas import (
+    LoginRequest,
+    SignupRequest,
+    TokenResponse,
+    UserResponse,
+)
+from stu_back.security import create_access_token, hash_password, verify_password
 
 app = FastAPI(title="AI Viva Examiner")
 
@@ -36,4 +41,14 @@ def signup(data: SignupRequest, db: Session = Depends(get_db)):
     db.add(user)
     db.commit()
     db.refresh(user)
-    return user         
+    return user
+
+
+@app.post("/login", response_model=TokenResponse)
+def login(data: LoginRequest, db: Session = Depends(get_db)):
+    user = db.scalar(select(User).where(User.email == data.email))
+    if user is None or not verify_password(data.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    token = create_access_token(str(user.id), user.role)
+    return TokenResponse(access_token=token)
