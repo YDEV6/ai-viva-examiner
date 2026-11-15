@@ -1,6 +1,6 @@
 import uuid
 from typing import Literal
-
+from datetime import datetime
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
@@ -27,3 +27,17 @@ class LoginRequest(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
+
+class ExamCreate(BaseModel):
+    title: str = Field(min_length=1)
+    topic: str = Field(min_length=1)
+
+
+class ExamResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    teacher_id: uuid.UUID
+    title: str
+    topic: str
+    created_at: datetime

@@ -1,10 +1,12 @@
-from stu_back.deps import get_current_user
+from stu_back.deps import get_current_user, require_teacher
 from fastapi import Depends, FastAPI, HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from stu_back.database import get_db
-from stu_back.models import User
+from stu_back.models import Exam, User
 from stu_back.schemas import (
+    ExamCreate,
+    ExamResponse,
     LoginRequest,
     SignupRequest,
     TokenResponse,
@@ -56,3 +58,15 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
 @app.get("/me", response_model=UserResponse)
 def read_me(current_user: User = Depends(get_current_user)):
     return current_user
+
+@app.post("/exams", response_model=ExamResponse, status_code=status.HTTP_201_CREATED)
+def create_exam(
+    data: ExamCreate,
+    db: Session = Depends(get_db),
+    teacher: User = Depends(require_teacher),
+):
+    exam = Exam(teacher_id=teacher.id, title=data.title, topic=data.topic)
+    db.add(exam)
+    db.commit()
+    db.refresh(exam)
+    return exam
