@@ -4,7 +4,7 @@ from fastapi import Depends, FastAPI, HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from stu_back.database import get_db
-from stu_back.models import Exam,Questions, User
+from stu_back.models import Exam,Question, User
 from stu_back.schemas import (
     ExamCreate,
     ExamResponse,
@@ -58,9 +58,11 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
     token = create_access_token(str(user.id), user.role)
     return TokenResponse(access_token=token)
 
+
 @app.get("/me", response_model=UserResponse)
 def read_me(current_user: User = Depends(get_current_user)):
     return current_user
+
 
 @app.post("/exams", response_model=ExamResponse, status_code=status.HTTP_201_CREATED)
 def create_exam(
@@ -73,6 +75,7 @@ def create_exam(
     db.commit()
     db.refresh(exam)
     return exam
+
 
 @app.post(
     "/exams/{exam_id}/questions",
@@ -96,3 +99,46 @@ def add_question(
     db.commit()
     db.refresh(question)
     return question
+
+
+@app.get("/exams", response_model=list[ExamResponse])
+def list_exams(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    query = select(Exam).order_by(Exam.created_at.desc())
+    if current_user.role == "teacher":
+        query = query.where(Exam.teacher_id == current_user.id)
+    return db.scalars(query).all()
+
+
+@app.get("/exams/{exam_id}", response_model=ExamResponse)
+def get_exam(
+    exam_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    exam = db.get(Exam, exam_id)
+    if exam is None:
+        raise HTTPException(status_code=404, detail="Exam not found")
+    return exam
+
+
+@app.get("/exams/{exam_id}/questions", response_model=list[QuestionResponse])
+def list_questions(
+    exam_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    teacher: User = Depends(require_teacher),
+):
+    exam = db.get(Exam, exam_id)
+    if exam is None:
+        raise HTTPException(status_code=404, detail="Exam not found")
+    if exam.teacher_id != teacher.id:
+        raise HTTPException(status_code=403, detail="This is not your exam")
+
+    query = (
+        select(Question)
+        .where(Question.exam_id == exam.id)
+        .order_by(Question.created_at)
+    )
+    return db.scalars(query).all()
